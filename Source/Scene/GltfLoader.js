@@ -921,7 +921,7 @@ function loadVertexAttribute(
   const outputTypedArrayOnly = loader._loadAttributesAsTypedArray;
   const outputBuffer = !outputTypedArrayOnly;
   const outputTypedArray = outputTypedArrayOnly || loadFor2D;
-  const outputTypedArrayPacked = false;
+  const outputTypedArrayPacked = false; // TODO: set this to true based on flag
 
   // Determine what to load right now:
   //

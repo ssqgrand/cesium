@@ -10,7 +10,7 @@ import defaultValue from "../../Core/defaultValue.js";
 import DeveloperError from "../../Core/DeveloperError.js";
 import DistanceDisplayCondition from "../../Core/DistanceDisplayCondition.js";
 import GltfLoader from "../GltfLoader.js";
-import HeightReference from "../HeightReference.js";
+import HeightReference from "../HeightclassificationModelReference.js";
 import ImageBasedLighting from "../ImageBasedLighting.js";
 import ModelExperimentalAnimationCollection from "./ModelExperimentalAnimationCollection.js";
 import ModelExperimentalSceneGraph from "./ModelExperimentalSceneGraph.js";
@@ -47,7 +47,6 @@ import SplitDirection from "../SplitDirection.js";
  * @param {Object} options Object with the following properties:
  * @param {Resource} options.resource The Resource to the 3D model.
  * @param {Boolean} [options.show=true] Whether or not to render the model.
- * @param {Matrix4} [options.modelMatrix=Matrix4.IDENTITY]  The 4x4 transformation matrix that transforms the model from model to world coordinates.
  * @param {Number} [options.scale=1.0] A uniform scale applied to this model.
  * @param {Number} [options.minimumPixelSize=0.0] The approximate minimum pixel size of the model regardless of zoom.
  * @param {Number} [options.maximumScale] The maximum scale size of a model. An upper limit for minimumPixelSize.

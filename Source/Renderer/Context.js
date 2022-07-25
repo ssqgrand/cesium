@@ -163,8 +163,31 @@ function getWebGLContext(canvas, webglOptions, requestWebgl2) {
 }
 
 /**
- * @private
+ * @typedef {Object} Context.WebGLOptions
+ *
+ * WebGL options to be passed to HTMLCanvasElement.getContext()
+ *
+ * @property {Boolean} [alpha=false]
+ * @property {Boolean} [depth=true]
+ * @property {Boolean} [stencil=false]
+ * @property {Boolean} [antialias=true]
+ * @property {("default"|"high-performance"|"low-power")} [powerPreference="high-performance"]
+ * @property {Boolean} [premultipliedAlpha=true]
+ * @property {Boolean} [preserveDrawingBuffer=false]
+ * @property {Boolean} [failIfMajorPerformanceCaveat=false]
+ */
+
+/**
+ * @alias Context
  * @constructor
+ *
+ * @param {HTMLCanvasElement} canvas
+ * @param {Object} [options={}] Object with the following properties:
+ * @param {Boolean} [options.allowTextureFilterAnisotropic=true] If true, use anisotropic filtering during texture sampling
+ * @param {Boolean} [options.requestWebgl2=false] If true and browser supports it, use a WebGL 2 rendering context
+ * @param {Context.WebGLOptions} [webgl] WebGL options to be passed to canvas.getContext
+ * @param {Function} [options.getWebGLStub] A function to create a WebGL stub for testing
+ * @private
  */
 function Context(canvas, options) {
   //>>includeStart('debug', pragmas.debug);

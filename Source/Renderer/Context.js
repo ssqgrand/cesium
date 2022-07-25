@@ -143,23 +143,33 @@ function getExtension(gl, names) {
   return undefined;
 }
 
-/**
- * @private
- * @constructor
- */
-function Context(canvas, options) {
-  // this check must use typeof, not defined, because defined doesn't work with undeclared variables.
+function getWebGLContext(canvas, webglOptions, requestWebgl2) {
   if (typeof WebGLRenderingContext === "undefined") {
     throw new RuntimeError(
       "The browser does not support WebGL.  Visit http://get.webgl.org."
     );
   }
 
+  const contextType = requestWebgl2 ? "webgl2" : "webgl";
+  const glContext = canvas.getContext(contextType, webglOptions);
+
+  if (!defined(glContext)) {
+    throw new RuntimeError(
+      "The browser supports WebGL, but initialization failed."
+    );
+  }
+
+  return glContext;
+}
+
+/**
+ * @private
+ * @constructor
+ */
+function Context(canvas, options) {
   //>>includeStart('debug', pragmas.debug);
   Check.defined("canvas", canvas);
   //>>includeEnd('debug');
-
-  this._canvas = canvas;
 
   options = clone(options, true);
   // Don't use defaultValue.EMPTY_OBJECT here because the options object gets modified in the next line.
@@ -168,46 +178,26 @@ function Context(canvas, options) {
     options.allowTextureFilterAnisotropic,
     true
   );
-  const webglOptions = defaultValue(options.webgl, {});
 
   // Override select WebGL defaults
+  const webglOptions = defaultValue(options.webgl, {});
   webglOptions.alpha = defaultValue(webglOptions.alpha, false); // WebGL default is true
   webglOptions.stencil = defaultValue(webglOptions.stencil, true); // WebGL default is false
 
+  const getWebGLStub = options.getWebGLStub;
   const requestWebgl2 =
     defaultValue(options.requestWebgl2, false) &&
     typeof WebGL2RenderingContext !== "undefined";
-  let webgl2 = false;
 
-  let glContext;
-  const getWebGLStub = options.getWebGLStub;
+  const glContext = defined(getWebGLStub)
+    ? getWebGLStub(canvas, webglOptions)
+    : getWebGLContext(canvas, webglOptions, requestWebgl2);
 
-  if (!defined(getWebGLStub)) {
-    if (requestWebgl2) {
-      glContext =
-        canvas.getContext("webgl2", webglOptions) ||
-        canvas.getContext("experimental-webgl2", webglOptions) ||
-        undefined;
-      if (defined(glContext)) {
-        webgl2 = true;
-      }
-    }
-    if (!defined(glContext)) {
-      glContext =
-        canvas.getContext("webgl", webglOptions) ||
-        canvas.getContext("experimental-webgl", webglOptions) ||
-        undefined;
-    }
-    if (!defined(glContext)) {
-      throw new RuntimeError(
-        "The browser supports WebGL, but initialization failed."
-      );
-    }
-  } else {
-    // Use WebGL stub when requested for unit tests
-    glContext = getWebGLStub(canvas, webglOptions);
-  }
+  const webgl2 =
+    typeof WebGL2RenderingContext !== "undefined" &&
+    glContext instanceof WebGL2RenderingContext;
 
+  this._canvas = canvas;
   this._originalGLContext = glContext;
   this._gl = glContext;
   this._webgl2 = webgl2;

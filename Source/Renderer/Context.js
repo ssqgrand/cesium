@@ -31,152 +31,6 @@ import TextureCache from "./TextureCache.js";
 import UniformState from "./UniformState.js";
 import VertexArray from "./VertexArray.js";
 
-function errorToString(gl, error) {
-  let message = "WebGL Error:  ";
-  switch (error) {
-    case gl.INVALID_ENUM:
-      message += "INVALID_ENUM";
-      break;
-    case gl.INVALID_VALUE:
-      message += "INVALID_VALUE";
-      break;
-    case gl.INVALID_OPERATION:
-      message += "INVALID_OPERATION";
-      break;
-    case gl.OUT_OF_MEMORY:
-      message += "OUT_OF_MEMORY";
-      break;
-    case gl.CONTEXT_LOST_WEBGL:
-      message += "CONTEXT_LOST_WEBGL lost";
-      break;
-    default:
-      message += `Unknown (${error})`;
-  }
-
-  return message;
-}
-
-function createErrorMessage(gl, glFunc, glFuncArguments, error) {
-  let message = `${errorToString(gl, error)}: ${glFunc.name}(`;
-
-  for (let i = 0; i < glFuncArguments.length; ++i) {
-    if (i !== 0) {
-      message += ", ";
-    }
-    message += glFuncArguments[i];
-  }
-  message += ");";
-
-  return message;
-}
-
-function throwOnError(gl, glFunc, glFuncArguments) {
-  const error = gl.getError();
-  if (error !== gl.NO_ERROR) {
-    throw new RuntimeError(
-      createErrorMessage(gl, glFunc, glFuncArguments, error)
-    );
-  }
-}
-
-function makeGetterSetter(gl, propertyName, logFunction) {
-  return {
-    get: function () {
-      const value = gl[propertyName];
-      logFunction(gl, `get: ${propertyName}`, value);
-      return gl[propertyName];
-    },
-    set: function (value) {
-      gl[propertyName] = value;
-      logFunction(gl, `set: ${propertyName}`, value);
-    },
-  };
-}
-
-function wrapGL(gl, logFunction) {
-  if (!defined(logFunction)) {
-    return gl;
-  }
-
-  function wrapFunction(property) {
-    return function () {
-      const result = property.apply(gl, arguments);
-      logFunction(gl, property, arguments);
-      return result;
-    };
-  }
-
-  const glWrapper = {};
-
-  // JavaScript linters normally demand that a for..in loop must directly contain an if,
-  // but in our loop below, we actually intend to iterate all properties, including
-  // those in the prototype.
-  /*eslint-disable guard-for-in*/
-  for (const propertyName in gl) {
-    const property = gl[propertyName];
-
-    // wrap any functions we encounter, otherwise just copy the property to the wrapper.
-    if (property instanceof Function) {
-      glWrapper[propertyName] = wrapFunction(property);
-    } else {
-      Object.defineProperty(
-        glWrapper,
-        propertyName,
-        makeGetterSetter(gl, propertyName, logFunction)
-      );
-    }
-  }
-  /*eslint-enable guard-for-in*/
-
-  return glWrapper;
-}
-
-function getExtension(gl, names) {
-  const length = names.length;
-  for (let i = 0; i < length; ++i) {
-    const extension = gl.getExtension(names[i]);
-    if (extension) {
-      return extension;
-    }
-  }
-
-  return undefined;
-}
-
-function getWebGLContext(canvas, webglOptions, requestWebgl2) {
-  if (typeof WebGLRenderingContext === "undefined") {
-    throw new RuntimeError(
-      "The browser does not support WebGL.  Visit http://get.webgl.org."
-    );
-  }
-
-  const contextType = requestWebgl2 ? "webgl2" : "webgl";
-  const glContext = canvas.getContext(contextType, webglOptions);
-
-  if (!defined(glContext)) {
-    throw new RuntimeError(
-      "The browser supports WebGL, but initialization failed."
-    );
-  }
-
-  return glContext;
-}
-
-/**
- * @typedef {Object} Context.WebGLOptions
- *
- * WebGL options to be passed to HTMLCanvasElement.getContext()
- *
- * @property {Boolean} [alpha=false]
- * @property {Boolean} [depth=true]
- * @property {Boolean} [stencil=false]
- * @property {Boolean} [antialias=true]
- * @property {("default"|"high-performance"|"low-power")} [powerPreference="high-performance"]
- * @property {Boolean} [premultipliedAlpha=true]
- * @property {Boolean} [preserveDrawingBuffer=false]
- * @property {Boolean} [failIfMajorPerformanceCaveat=false]
- */
-
 /**
  * @alias Context
  * @constructor
@@ -543,6 +397,161 @@ function Context(canvas, options) {
   this.cache = {};
 
   RenderState.apply(gl, rs, ps);
+}
+
+/**
+ * @typedef {Object} Context.WebGLOptions
+ *
+ * WebGL options to be passed to HTMLCanvasElement.getContext()
+ *
+ * @property {Boolean} [alpha=false]
+ * @property {Boolean} [depth=true]
+ * @property {Boolean} [stencil=false]
+ * @property {Boolean} [antialias=true]
+ * @property {("default"|"high-performance"|"low-power")} [powerPreference="high-performance"]
+ * @property {Boolean} [premultipliedAlpha=true]
+ * @property {Boolean} [preserveDrawingBuffer=false]
+ * @property {Boolean} [failIfMajorPerformanceCaveat=false]
+ */
+
+/**
+ * Get a WebGL context on a canvas
+ *
+ * @param {HTMLCanvasElement} canvas
+ * @param {Context.WebGLOptions} webglOptions Options to pass to canvas.getContext()
+ * @param {Boolean} requestWebgl2 If true, return a WebGL2 rendering context; otherwise WebGL1
+ * @returns {WebGLRenderingContext|WebGL2RenderingContext}
+ * @private
+ */
+function getWebGLContext(canvas, webglOptions, requestWebgl2) {
+  if (typeof WebGLRenderingContext === "undefined") {
+    throw new RuntimeError(
+      "The browser does not support WebGL.  Visit http://get.webgl.org."
+    );
+  }
+
+  const contextType = requestWebgl2 ? "webgl2" : "webgl";
+  const glContext = canvas.getContext(contextType, webglOptions);
+
+  if (!defined(glContext)) {
+    throw new RuntimeError(
+      "The browser supports WebGL, but initialization failed."
+    );
+  }
+
+  return glContext;
+}
+
+function errorToString(gl, error) {
+  let message = "WebGL Error:  ";
+  switch (error) {
+    case gl.INVALID_ENUM:
+      message += "INVALID_ENUM";
+      break;
+    case gl.INVALID_VALUE:
+      message += "INVALID_VALUE";
+      break;
+    case gl.INVALID_OPERATION:
+      message += "INVALID_OPERATION";
+      break;
+    case gl.OUT_OF_MEMORY:
+      message += "OUT_OF_MEMORY";
+      break;
+    case gl.CONTEXT_LOST_WEBGL:
+      message += "CONTEXT_LOST_WEBGL lost";
+      break;
+    default:
+      message += `Unknown (${error})`;
+  }
+
+  return message;
+}
+
+function createErrorMessage(gl, glFunc, glFuncArguments, error) {
+  let message = `${errorToString(gl, error)}: ${glFunc.name}(`;
+
+  for (let i = 0; i < glFuncArguments.length; ++i) {
+    if (i !== 0) {
+      message += ", ";
+    }
+    message += glFuncArguments[i];
+  }
+  message += ");";
+
+  return message;
+}
+
+function throwOnError(gl, glFunc, glFuncArguments) {
+  const error = gl.getError();
+  if (error !== gl.NO_ERROR) {
+    throw new RuntimeError(
+      createErrorMessage(gl, glFunc, glFuncArguments, error)
+    );
+  }
+}
+
+function makeGetterSetter(gl, propertyName, logFunction) {
+  return {
+    get: function () {
+      const value = gl[propertyName];
+      logFunction(gl, `get: ${propertyName}`, value);
+      return gl[propertyName];
+    },
+    set: function (value) {
+      gl[propertyName] = value;
+      logFunction(gl, `set: ${propertyName}`, value);
+    },
+  };
+}
+
+function wrapGL(gl, logFunction) {
+  if (!defined(logFunction)) {
+    return gl;
+  }
+
+  function wrapFunction(property) {
+    return function () {
+      const result = property.apply(gl, arguments);
+      logFunction(gl, property, arguments);
+      return result;
+    };
+  }
+
+  const glWrapper = {};
+
+  // JavaScript linters normally demand that a for..in loop must directly contain an if,
+  // but in our loop below, we actually intend to iterate all properties, including
+  // those in the prototype.
+  /*eslint-disable guard-for-in*/
+  for (const propertyName in gl) {
+    const property = gl[propertyName];
+
+    // wrap any functions we encounter, otherwise just copy the property to the wrapper.
+    if (property instanceof Function) {
+      glWrapper[propertyName] = wrapFunction(property);
+    } else {
+      Object.defineProperty(
+        glWrapper,
+        propertyName,
+        makeGetterSetter(gl, propertyName, logFunction)
+      );
+    }
+  }
+  /*eslint-enable guard-for-in*/
+
+  return glWrapper;
+}
+
+function getExtension(gl, names) {
+  const length = names.length;
+  for (let i = 0; i < length; ++i) {
+    const extension = gl.getExtension(names[i]);
+    if (extension) {
+      return extension;
+    }
+  }
+
+  return undefined;
 }
 
 const defaultFramebufferMarker = {};

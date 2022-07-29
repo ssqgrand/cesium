@@ -137,6 +137,7 @@ const rectangleScratch = new Rectangle();
  * @param {Number} options.x The X coordinate of the tile for which to create the terrain data.
  * @param {Number} options.y The Y coordinate of the tile for which to create the terrain data.
  * @param {Number} options.level The level of the tile for which to create the terrain data.
+ * @param {SerializedMapProjection} options.serializedMapProjection Serialized map projection.
  * @param {Number} [options.exaggeration=1.0] The scale used to exaggerate the terrain.
  * @param {Number} [options.exaggerationRelativeHeight=0.0] The height from which terrain is exaggerated.
  * @param {Boolean} [options.throttle=true] If true, indicates that this operation will need to be retried if too many asynchronous mesh creations are already in progress.
@@ -152,12 +153,17 @@ GoogleEarthEnterpriseTerrainData.prototype.createMesh = function (options) {
   Check.typeOf.number("options.x", options.x);
   Check.typeOf.number("options.y", options.y);
   Check.typeOf.number("options.level", options.level);
+  Check.typeOf.object(
+    "options.serializedMapProjection",
+    options.serializedMapProjection
+  );
   //>>includeEnd('debug');
 
   const tilingScheme = options.tilingScheme;
   const x = options.x;
   const y = options.y;
   const level = options.level;
+  const serializedMapProjection = options.serializedMapProjection;
   const exaggeration = defaultValue(options.exaggeration, 1.0);
   const exaggerationRelativeHeight = defaultValue(
     options.exaggerationRelativeHeight,
@@ -194,6 +200,7 @@ GoogleEarthEnterpriseTerrainData.prototype.createMesh = function (options) {
     includeWebMercatorT: true,
     negativeAltitudeExponentBias: this._negativeAltitudeExponentBias,
     negativeElevationThreshold: this._negativeElevationThreshold,
+    serializedMapProjection: serializedMapProjection,
   });
 
   if (!defined(verticesPromise)) {

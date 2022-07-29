@@ -1,4 +1,8 @@
 import Check from "./Check.js";
+import GeographicProjection from "./GeographicProjection.js";
+
+const geographicProjection = new GeographicProjection();
+const serializedGeographic = geographicProjection.serialize();
 
 /**
  * Initiates a terrain height query for an array of {@link Cartographic} positions by
@@ -166,6 +170,8 @@ function createInterpolateFunction(tileRequest) {
         // don't throttle this mesh creation because we've asked to sample these points;
         //  so sample them! We don't care how many tiles that is!
         throttle: false,
+        // this mesh is not for rendering, so the projection for 2D doesn't matter
+        serializedMapProjection: serializedGeographic,
       })
       .then(function () {
         // mesh has been created - so go through every position (maybe again)

@@ -1,84 +1,122 @@
 import { Cartesian2 } from "../../Source/Cesium.js";
 import { Cartesian3 } from "../../Source/Cesium.js";
+import { Cartographic } from "../../Source/Cesium.js";
+import { CustomProjection } from "../../Source/Cesium.js";
 import { Ellipsoid } from "../../Source/Cesium.js";
+import { GeographicProjection } from "../../Source/Cesium.js";
 import { HeightmapTessellator } from "../../Source/Cesium.js";
 import { Math as CesiumMath } from "../../Source/Cesium.js";
 import { Rectangle } from "../../Source/Cesium.js";
 import { WebMercatorProjection } from "../../Source/Cesium.js";
 
 describe("Scene/HeightmapTessellator", function () {
+  const geographicProjection = new GeographicProjection();
+
   it("throws when heightmap is not provided", function () {
     expect(function () {
-      HeightmapTessellator.computeVertices();
+      HeightmapTessellator.computeVertices(undefined, geographicProjection);
     }).toThrowDeveloperError();
 
     expect(function () {
-      HeightmapTessellator.computeVertices({
-        width: 2,
-        height: 2,
-        vertices: [],
-        nativeRectangle: {
-          west: 10.0,
-          south: 20.0,
-          east: 20.0,
-          north: 30.0,
+      HeightmapTessellator.computeVertices(
+        {
+          width: 2,
+          height: 2,
+          vertices: [],
+          nativeRectangle: {
+            west: 10.0,
+            south: 20.0,
+            east: 20.0,
+            north: 30.0,
+          },
+          skirtHeight: 10.0,
         },
-        skirtHeight: 10.0,
-      });
+        geographicProjection
+      );
     }).toThrowDeveloperError();
   });
 
   it("throws when width or height is not provided", function () {
     expect(function () {
-      HeightmapTessellator.computeVertices({
-        heightmap: [1.0, 2.0, 3.0, 4.0],
-        height: 2,
-        vertices: [],
-        nativeRectangle: {
-          west: 10.0,
-          south: 20.0,
-          east: 20.0,
-          north: 30.0,
+      HeightmapTessellator.computeVertices(
+        {
+          heightmap: [1.0, 2.0, 3.0, 4.0],
+          height: 2,
+          vertices: [],
+          nativeRectangle: {
+            west: 10.0,
+            south: 20.0,
+            east: 20.0,
+            north: 30.0,
+          },
+          skirtHeight: 10.0,
         },
-        skirtHeight: 10.0,
-      });
+        geographicProjection
+      );
     }).toThrowDeveloperError();
 
     expect(function () {
-      HeightmapTessellator.computeVertices({
-        heightmap: [1.0, 2.0, 3.0, 4.0],
-        width: 2,
-        vertices: [],
-        nativeRectangle: {
-          west: 10.0,
-          south: 20.0,
-          east: 20.0,
-          north: 30.0,
+      HeightmapTessellator.computeVertices(
+        {
+          heightmap: [1.0, 2.0, 3.0, 4.0],
+          width: 2,
+          vertices: [],
+          nativeRectangle: {
+            west: 10.0,
+            south: 20.0,
+            east: 20.0,
+            north: 30.0,
+          },
+          skirtHeight: 10.0,
         },
-        skirtHeight: 10.0,
-      });
+        geographicProjection
+      );
     }).toThrowDeveloperError();
   });
 
   it("throws when nativeRectangle is not provided", function () {
     expect(function () {
-      HeightmapTessellator.computeVertices({
-        heightmap: [1.0, 2.0, 3.0, 4.0],
-        width: 2,
-        height: 2,
-        vertices: [],
-        skirtHeight: 10.0,
-      });
+      HeightmapTessellator.computeVertices(
+        {
+          heightmap: [1.0, 2.0, 3.0, 4.0],
+          width: 2,
+          height: 2,
+          vertices: [],
+          skirtHeight: 10.0,
+        },
+        geographicProjection
+      );
     }).toThrowDeveloperError();
   });
 
   it("throws when skirtHeight is not provided", function () {
+    expect(function () {
+      HeightmapTessellator.computeVertices(
+        {
+          heightmap: [1.0, 2.0, 3.0, 4.0],
+          width: 2,
+          height: 2,
+          vertices: [],
+          nativeRectangle: {
+            west: 10.0,
+            south: 20.0,
+            east: 20.0,
+            north: 30.0,
+          },
+        },
+        geographicProjection
+      );
+    }).toThrowDeveloperError();
+  });
+
+  it("throws when mapProjection is not provided", function () {
     expect(function () {
       HeightmapTessellator.computeVertices({
         heightmap: [1.0, 2.0, 3.0, 4.0],
         width: 2,
         height: 2,
         vertices: [],
+        skirtHeight: 10.0,
         nativeRectangle: {
           west: 10.0,
           south: 20.0,
@@ -212,7 +250,10 @@ describe("Scene/HeightmapTessellator", function () {
         CesiumMath.toRadians(40.0)
       ),
     };
-    const results = HeightmapTessellator.computeVertices(options);
+    const results = HeightmapTessellator.computeVertices(
+      options,
+      geographicProjection
+    );
     const vertices = results.vertices;
 
     const ellipsoid = Ellipsoid.WGS84;
@@ -254,7 +295,10 @@ describe("Scene/HeightmapTessellator", function () {
         north: 40.0,
       },
     };
-    const results = HeightmapTessellator.computeVertices(options);
+    const results = HeightmapTessellator.computeVertices(
+      options,
+      geographicProjection
+    );
     const vertices = results.vertices;
 
     const ellipsoid = Ellipsoid.WGS84;
@@ -367,7 +411,10 @@ describe("Scene/HeightmapTessellator", function () {
         north: 0.02,
       },
     };
-    const results = HeightmapTessellator.computeVertices(options);
+    const results = HeightmapTessellator.computeVertices(
+      options,
+      geographicProjection
+    );
     const vertices = results.vertices;
 
     const ellipsoid = Ellipsoid.WGS84;
@@ -486,11 +533,11 @@ describe("Scene/HeightmapTessellator", function () {
       },
       isGeographic: false,
     };
-    const results = HeightmapTessellator.computeVertices(options);
-    const vertices = results.vertices;
-
     const ellipsoid = Ellipsoid.WGS84;
     const projection = new WebMercatorProjection(ellipsoid);
+    const results = HeightmapTessellator.computeVertices(options, projection);
+    const vertices = results.vertices;
+
     const nativeRectangle = options.nativeRectangle;
 
     const geographicSouthwest = projection.unproject(
@@ -553,6 +600,147 @@ describe("Scene/HeightmapTessellator", function () {
     }
   });
 
+  it("generates 2D position attributes for projections other than Geographic and Web Mercator", function () {
+    const width = 3;
+    const height = 3;
+    const projection = new CustomProjection("Data/UserGeographic.js");
+
+    return projection.readyPromise.then(function () {
+      const options = {
+        heightmap: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+        width: width,
+        height: height,
+        skirtHeight: 0.0,
+        nativeRectangle: {
+          west: 10.0,
+          south: 30.0,
+          east: 20.0,
+          north: 40.0,
+        },
+        rectangle: new Rectangle(
+          CesiumMath.toRadians(10.0),
+          CesiumMath.toRadians(30.0),
+          CesiumMath.toRadians(20.0),
+          CesiumMath.toRadians(40.0)
+        ),
+      };
+      const results = HeightmapTessellator.computeVertices(options, projection);
+      const vertices = results.vertices;
+
+      const rectangle = options.rectangle;
+
+      for (let j = 0; j < height; ++j) {
+        const latitude = CesiumMath.lerp(
+          rectangle.north,
+          rectangle.south,
+          j / (height - 1)
+        );
+        for (let i = 0; i < width; ++i) {
+          const longitude = CesiumMath.lerp(
+            rectangle.west,
+            rectangle.east,
+            i / (width - 1)
+          );
+
+          const expectedVertexPosition2d = projection.project(
+            new Cartographic(longitude, latitude)
+          );
+
+          const index = (j * width + i) * 9 + 6;
+          const vertexPosition2d = new Cartesian3(
+            vertices[index],
+            vertices[index + 1],
+            0.0
+          );
+
+          expect(
+            Cartesian3.equalsEpsilon(
+              vertexPosition2d,
+              expectedVertexPosition2d,
+              CesiumMath.EPSILON7
+            )
+          ).toBe(true);
+
+          const heightSample = vertices[index + 2];
+          expect(1.0 <= heightSample && heightSample <= 9.0).toBe(true);
+        }
+      }
+    });
+  });
+
+  it("generates 2D position attributes with relative-to-center", function () {
+    const width = 3;
+    const height = 3;
+    const projection = new CustomProjection("Data/UserGeographic.js");
+    return projection.readyPromise.then(function () {
+      const rectangle = new Rectangle(
+        CesiumMath.toRadians(10.0),
+        CesiumMath.toRadians(30.0),
+        CesiumMath.toRadians(20.0),
+        CesiumMath.toRadians(40.0)
+      );
+
+      const options = {
+        heightmap: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
+        width: width,
+        height: height,
+        skirtHeight: 0.0,
+        nativeRectangle: {
+          west: 10.0,
+          south: 30.0,
+          east: 20.0,
+          north: 40.0,
+        },
+        rectangle: rectangle,
+        relativeToCenter: projection.ellipsoid.cartographicToCartesian(
+          Rectangle.center(rectangle)
+        ),
+      };
+      const results = HeightmapTessellator.computeVertices(options, projection);
+      const vertices = results.vertices;
+      const center2D = results.encoding.center2D;
+
+      for (let j = 0; j < height; ++j) {
+        const latitude = CesiumMath.lerp(
+          rectangle.north,
+          rectangle.south,
+          j / (height - 1)
+        );
+        for (let i = 0; i < width; ++i) {
+          const longitude = CesiumMath.lerp(
+            rectangle.west,
+            rectangle.east,
+            i / (width - 1)
+          );
+
+          const expectedVertexPosition2d = projection.project(
+            new Cartographic(longitude, latitude)
+          );
+
+          const index = (j * width + i) * 9 + 6;
+          const vertexPosition2d = new Cartesian3(
+            vertices[index],
+            vertices[index + 1],
+            0.0
+          );
+          vertexPosition2d.x += center2D.x;
+          vertexPosition2d.y += center2D.y;
+
+          expect(
+            Cartesian3.equalsEpsilon(
+              vertexPosition2d,
+              expectedVertexPosition2d,
+              CesiumMath.EPSILON7
+            )
+          ).toBe(true);
+
+          const heightSample = Math.floor(vertices[index + 2] + center2D.z);
+          expect(1.0 <= heightSample && heightSample <= 9.0).toBe(true);
+        }
+      }
+    });
+  });
+
   it("supports multi-element little endian heights", function () {
     const width = 3;
     const height = 3;
@@ -607,7 +795,10 @@ describe("Scene/HeightmapTessellator", function () {
         elementMultiplier: 10,
       },
     };
-    const results = HeightmapTessellator.computeVertices(options);
+    const results = HeightmapTessellator.computeVertices(
+      options,
+      geographicProjection
+    );
     const vertices = results.vertices;
 
     const ellipsoid = Ellipsoid.WGS84;
@@ -715,7 +906,10 @@ describe("Scene/HeightmapTessellator", function () {
         isBigEndian: true,
       },
     };
-    const results = HeightmapTessellator.computeVertices(options);
+    const results = HeightmapTessellator.computeVertices(
+      options,
+      geographicProjection
+    );
     const vertices = results.vertices;
 
     const ellipsoid = Ellipsoid.WGS84;

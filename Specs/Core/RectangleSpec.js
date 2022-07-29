@@ -1,7 +1,9 @@
 import { Cartesian3 } from "../../Source/Cesium.js";
 import { Cartographic } from "../../Source/Cesium.js";
 import { Ellipsoid } from "../../Source/Cesium.js";
+import { GeographicProjection } from "../../Source/Cesium.js";
 import { Math as CesiumMath } from "../../Source/Cesium.js";
+import { Proj4Projection } from "../../Source/Cesium.js";
 import { Rectangle } from "../../Source/Cesium.js";
 import createPackableSpecs from "../createPackableSpecs.js";
 
@@ -11,6 +13,26 @@ describe("Core/Rectangle", function () {
   const east = 1.4;
   const north = 1.0;
   const center = new Cartographic((west + east) / 2.0, (south + north) / 2.0);
+  let arcticProjection;
+  let antarcticProjection;
+
+  beforeAll(function () {
+    const epsg3411bounds = Rectangle.fromDegrees(-180.0, 30.0, 180.0, 90.0);
+    const epsg3411wkt =
+      "+proj=stere +lat_0=90 +lat_ts=70 +lon_0=-45 +k=1 +x_0=0 +y_0=0 +a=6378273 +b=6356889.449 +units=m +no_defs";
+    arcticProjection = new Proj4Projection({
+      wellKnownText: epsg3411wkt,
+      wgs84Bounds: epsg3411bounds,
+    });
+
+    const epsg3031Bounds = Rectangle.fromDegrees(-180.0, -90.0, 180.0, -60.0);
+    const epsg3031wkt =
+      "+proj=stere +lat_0=-90 +lat_ts=-71 +lon_0=0 +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs";
+    antarcticProjection = new Proj4Projection({
+      wellKnownText: epsg3031wkt,
+      wgs84Bounds: epsg3031Bounds,
+    });
+  });
 
   it("default constructor sets expected values.", function () {
     const rectangle = new Rectangle();
@@ -1440,6 +1462,109 @@ describe("Core/Rectangle", function () {
     expect(function () {
       Rectangle.contains(rectangle, undefined);
     }).toThrowDeveloperError();
+  });
+
+  it("approximates the projected extents of a cartographic Rectangle", function () {
+    const projection = new GeographicProjection();
+    const cartographicRectangle = Rectangle.fromDegrees(-90, -45, 90, 45);
+    const projectedRectangle = Rectangle.approximateProjectedExtents({
+      cartographicRectangle: cartographicRectangle,
+      mapProjection: projection,
+    });
+    expect(projectedRectangle.west).toEqualEpsilon(
+      -CesiumMath.PI_OVER_TWO * Ellipsoid.WGS84.maximumRadius,
+      CesiumMath.EPSILON7
+    );
+    expect(projectedRectangle.east).toEqualEpsilon(
+      CesiumMath.PI_OVER_TWO * Ellipsoid.WGS84.maximumRadius,
+      CesiumMath.EPSILON7
+    );
+    expect(projectedRectangle.south).toEqualEpsilon(
+      -CesiumMath.PI_OVER_FOUR * Ellipsoid.WGS84.maximumRadius,
+      CesiumMath.EPSILON7
+    );
+    expect(projectedRectangle.north).toEqualEpsilon(
+      CesiumMath.PI_OVER_FOUR * Ellipsoid.WGS84.maximumRadius,
+      CesiumMath.EPSILON7
+    );
+  });
+
+  it("approximates the cartographic extents of a projected Rectangle", function () {
+    const projection = new GeographicProjection();
+
+    const west = -CesiumMath.PI_OVER_TWO * Ellipsoid.WGS84.maximumRadius;
+    const east = CesiumMath.PI_OVER_TWO * Ellipsoid.WGS84.maximumRadius;
+    const south = -CesiumMath.PI_OVER_FOUR * Ellipsoid.WGS84.maximumRadius;
+    const north = CesiumMath.PI_OVER_FOUR * Ellipsoid.WGS84.maximumRadius;
+
+    const projectedRectangle = new Rectangle(west, south, east, north);
+    const cartographicRectangle = Rectangle.approximateCartographicExtents({
+      projectedRectangle: projectedRectangle,
+      mapProjection: projection,
+    });
+    expect(cartographicRectangle.west).toEqualEpsilon(
+      -CesiumMath.PI_OVER_TWO,
+      CesiumMath.EPSILON7
+    );
+    expect(cartographicRectangle.east).toEqualEpsilon(
+      CesiumMath.PI_OVER_TWO,
+      CesiumMath.EPSILON7
+    );
+    expect(cartographicRectangle.south).toEqualEpsilon(
+      -CesiumMath.PI_OVER_FOUR,
+      CesiumMath.EPSILON7
+    );
+    expect(cartographicRectangle.north).toEqualEpsilon(
+      CesiumMath.PI_OVER_FOUR,
+      CesiumMath.EPSILON7
+    );
+  });
+
+  it("detects poles when approximating cartographic extents of projected Rectangles", function () {
+    // Rectangle around North pole in EPSG:3411 and around South pole in EPSG:3031
+    const west = -300000;
+    const east = 300000;
+    const south = -300000;
+    const north = 300000;
+    const projectedRectangle = new Rectangle(west, south, east, north);
+
+    const cartographicRectangleArctic = Rectangle.approximateCartographicExtents(
+      {
+        projectedRectangle: projectedRectangle,
+        mapProjection: arcticProjection,
+      }
+    );
+    expect(cartographicRectangleArctic.north).toEqual(CesiumMath.PI_OVER_TWO);
+    expect(cartographicRectangleArctic.east).toEqual(CesiumMath.PI);
+    expect(cartographicRectangleArctic.west).toEqual(-CesiumMath.PI);
+
+    const cartographicRectangleAntarctic = Rectangle.approximateCartographicExtents(
+      {
+        projectedRectangle: projectedRectangle,
+        mapProjection: antarcticProjection,
+      }
+    );
+    expect(cartographicRectangleAntarctic.south).toEqual(
+      -CesiumMath.PI_OVER_TWO
+    );
+    expect(cartographicRectangleAntarctic.east).toEqual(CesiumMath.PI);
+    expect(cartographicRectangleAntarctic.west).toEqual(-CesiumMath.PI);
+  });
+
+  it("detects rectangles crossing the IDL when approximating cartographic extents of projected Rectangles", function () {
+    // Rectangle in EPSG:3411 that crosses the IDL
+    const west = -1300000;
+    const east = -700000;
+    const south = 700000;
+    const north = 1300000;
+    const projectedRectangle = new Rectangle(west, south, east, north);
+
+    const cartographicRectangle = Rectangle.approximateCartographicExtents({
+      projectedRectangle: projectedRectangle,
+      mapProjection: arcticProjection,
+    });
+    expect(cartographicRectangle.west > cartographicRectangle.east).toBe(true);
+    expect(cartographicRectangle.width < CesiumMath.PI).toBe(true);
   });
 
   const rectangle = new Rectangle(west, south, east, north);

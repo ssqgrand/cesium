@@ -1,3 +1,5 @@
+import BoundingSphere from "./BoundingSphere.js";
+import Cartesian3 from "./Cartesian3.js";
 import defaultValue from "./defaultValue.js";
 
 /**
@@ -107,7 +109,7 @@ function TerrainMesh(
    * A bounding sphere that completely contains the tile.
    * @type {BoundingSphere}
    */
-  this.boundingSphere3D = boundingSphere3D;
+  this.boundingSphere3D = BoundingSphere.clone(boundingSphere3D);
 
   /**
    * The occludee point of the tile, represented in ellipsoid-
@@ -152,5 +154,10 @@ function TerrainMesh(
    * @type {Number[]}
    */
   this.northIndicesWestToEast = northIndicesWestToEast;
+
+  /**
+   * Only for use with Proj4 and custom projections.
+   */
+  this.center2D = Cartesian3.clone(encoding.center2D);
 }
 export default TerrainMesh;

@@ -1,10 +1,13 @@
 Apps/HelloWorld.html
 Apps/Sandcastle/ThirdParty/**
+Apps/SampleData/**
 Build/**
 Documentation/**
 Source/Scene/GltfPipeline/**
 Source/Shaders/**
 Source/ThirdParty/**
+Source/Workers/cesiumWorkerBootstrapper.js
+Specs/Data/**
 Source/Workers/**
 !Source/Workers/transferTypedArrayTest.js
 Specs/jasmine/**

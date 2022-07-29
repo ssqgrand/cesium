@@ -34,6 +34,7 @@ const SHIFT_LEFT_12 = Math.pow(2.0, 12.0);
  * @param {Boolean} [hasGeodeticSurfaceNormals=false] true if the terrain data includes geodetic surface normals; otherwise, false.
  * @param {Number} [exaggeration=1.0] A scalar used to exaggerate terrain.
  * @param {Number} [exaggerationRelativeHeight=0.0] The relative height from which terrain is exaggerated.
+ * @param {Cartesian3} [center2D] Center in the projected space. If defined, it is assumed that the projection requires 2D vertex attributes.
  *
  * @private
  */
@@ -47,7 +48,8 @@ function TerrainEncoding(
   hasWebMercatorT,
   hasGeodeticSurfaceNormals,
   exaggeration,
-  exaggerationRelativeHeight
+  exaggerationRelativeHeight,
+  center2D
 ) {
   let quantization = TerrainQuantization.NONE;
   let toENU;
@@ -183,6 +185,18 @@ function TerrainEncoding(
   );
 
   /**
+   * Center of the 2.5D projected space.
+   * @type {Cartesian3}
+   */
+  this.center2D = Cartesian3.clone(center2D);
+
+  /**
+   * The terrain mesh should contain projected positions for 2D space.
+   * @type {Boolean}
+   */
+  this.hasPositions2D = defined(center2D);
+
+  /**
    * The number of components in each vertex. This value can differ with different quantizations.
    * @type {Number}
    */
@@ -203,7 +217,8 @@ TerrainEncoding.prototype.encode = function (
   height,
   normalToPack,
   webMercatorT,
-  geodeticSurfaceNormal
+  geodeticSurfaceNormal,
+  position2D
 ) {
   const u = uv.x;
   const v = uv.y;
@@ -273,6 +288,14 @@ TerrainEncoding.prototype.encode = function (
     vertexBuffer[bufferIndex++] = geodeticSurfaceNormal.x;
     vertexBuffer[bufferIndex++] = geodeticSurfaceNormal.y;
     vertexBuffer[bufferIndex++] = geodeticSurfaceNormal.z;
+  }
+
+  // Don't quantize 2D positions in custom projections
+  if (this.hasPositions2D) {
+    Cartesian3.subtract(position2D, this.center2D, cartesian3Scratch);
+    vertexBuffer[bufferIndex++] = cartesian3Scratch.x;
+    vertexBuffer[bufferIndex++] = cartesian3Scratch.y;
+    vertexBuffer[bufferIndex++] = cartesian3Scratch.z;
   }
 
   return bufferIndex;
@@ -367,6 +390,18 @@ TerrainEncoding.prototype.decodePosition = function (buffer, index, result) {
   result.z = buffer[index + 2];
   return Cartesian3.add(result, this.center, result);
 };
+// Only for use when encoding hasPositions2D
+TerrainEncoding.prototype.decodePosition2D = function (buffer, index, result) {
+  if (!defined(result)) {
+    result = new Cartesian3();
+  }
+  index = (index + 1) * this.stride - 3;
+
+  result.x = buffer[index];
+  result.y = buffer[index + 1];
+  result.z = buffer[index + 2];
+  return Cartesian3.add(result, this.center2D, result);
+};
 
 TerrainEncoding.prototype.getExaggeratedPosition = function (
   buffer,
@@ -456,7 +491,10 @@ TerrainEncoding.prototype.getOctEncodedNormal = function (
   index,
   result
 ) {
-  index = index * this.stride + this._offsetVertexNormal;
+  index =
+    index * this.stride +
+    this._offsetVertexNormal +
+    (this.hasPositions2D ? -3 : 0);
 
   const temp = buffer[index] / 256.0;
   const x = Math.floor(temp);
@@ -500,6 +538,10 @@ TerrainEncoding.prototype._calculateStrideAndOffsets = function () {
     vertexStride += 3;
   }
 
+  if (this.hasPositions2D) {
+    vertexStride += 3;
+  }
+
   this.stride = vertexStride;
 };
 
@@ -513,12 +555,23 @@ const attributesIndicesBits12 = {
   compressed1: 1,
   geodeticSurfaceNormal: 2,
 };
+const attributesNoneAnd2D = {
+  position3DAndHeight: 0,
+  textureCoordAndEncodedNormals: 1,
+  position2D: 2,
+};
+const attributesAnd2D = {
+  compressed0: 0,
+  compressed1: 1,
+  position2D: 2,
+};
 
 TerrainEncoding.prototype.getAttributes = function (buffer) {
   const datatype = ComponentDatatype.FLOAT;
   const sizeInBytes = ComponentDatatype.getSizeInBytes(datatype);
   const strideInBytes = this.stride * sizeInBytes;
   let offsetInBytes = 0;
+  const num2DComponents = this.hasPositions2D ? 3 : 0;
 
   const attributes = [];
   function addAttribute(index, componentsPerAttribute) {
@@ -547,6 +600,9 @@ TerrainEncoding.prototype.getAttributes = function (buffer) {
     if (this.hasGeodeticSurfaceNormals) {
       addAttribute(attributesIndicesNone.geodeticSurfaceNormal, 3);
     }
+    if (this.hasPositions2D) {
+      addAttribute(attributesNoneAnd2D.position2D, num2DComponents);
+    }
   } else {
     // When there is no webMercatorT or vertex normals, the attribute only needs 3 components: x/y, z/h, u/v.
     // WebMercatorT and vertex normals each take up one component, so if only one of them is present the first
@@ -567,12 +623,21 @@ TerrainEncoding.prototype.getAttributes = function (buffer) {
     if (this.hasGeodeticSurfaceNormals) {
       addAttribute(attributesIndicesBits12.geodeticSurfaceNormal, 3);
     }
+    if (this.hasPositions2D) {
+      addAttribute(attributesNoneAnd2D.position2D, num2DComponents);
+    }
   }
 
   return attributes;
 };
 
 TerrainEncoding.prototype.getAttributeLocations = function () {
+  if (this.hasPositions2D) {
+    if (this.quantization === TerrainQuantization.NONE) {
+      return attributesIndicesNone;
+    }
+    return attributesAnd2D;
+  }
   if (this.quantization === TerrainQuantization.NONE) {
     return attributesIndicesNone;
   }
@@ -599,7 +664,8 @@ TerrainEncoding.clone = function (encoding, result) {
   result.hasGeodeticSurfaceNormals = encoding.hasGeodeticSurfaceNormals;
   result.exaggeration = encoding.exaggeration;
   result.exaggerationRelativeHeight = encoding.exaggerationRelativeHeight;
-
+  result.hasPositions2D = encoding.hasPositions2D;
+  result.center2D = Cartesian3.clone(encoding.center2D);
   result._calculateStrideAndOffsets();
 
   return result;

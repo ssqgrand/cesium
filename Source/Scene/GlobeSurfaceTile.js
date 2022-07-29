@@ -766,6 +766,7 @@ const scratchCreateMeshOptions = {
   exaggeration: 1.0,
   exaggerationRelativeHeight: 0.0,
   throttle: true,
+  serializedMapProjection: undefined,
 };
 
 function transform(surfaceTile, frameState, terrainProvider, x, y, level) {
@@ -780,6 +781,8 @@ function transform(surfaceTile, frameState, terrainProvider, x, y, level) {
   createMeshOptions.exaggerationRelativeHeight =
     frameState.terrainExaggerationRelativeHeight;
   createMeshOptions.throttle = true;
+  createMeshOptions.serializedMapProjection =
+    frameState.serializedMapProjection;
 
   const terrainData = surfaceTile.terrainData;
   const meshPromise = terrainData.createMesh(createMeshOptions);

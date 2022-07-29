@@ -10,6 +10,7 @@ import Ellipsoid from "../Core/Ellipsoid.js";
 import HeadingPitchRoll from "../Core/HeadingPitchRoll.js";
 import IntersectionTests from "../Core/IntersectionTests.js";
 import KeyboardEventModifier from "../Core/KeyboardEventModifier.js";
+import MapProjection from "../Core/MapProjection.js";
 import CesiumMath from "../Core/Math.js";
 import Matrix3 from "../Core/Matrix3.js";
 import Matrix4 from "../Core/Matrix4.js";
@@ -296,8 +297,9 @@ function ScreenSpaceCameraController(scene) {
   this._cameraUnderground = false;
 
   const projection = scene.mapProjection;
-  this._maxCoord = projection.project(
-    new Cartographic(Math.PI, CesiumMath.PI_OVER_TWO)
+  this._maxCoord = MapProjection.approximateMaximumCoordinate(
+    projection,
+    new Cartesian2()
   );
 
   // Constants, Make any of these public?
@@ -683,6 +685,9 @@ function handleZoom(
             object._zoomWorldPosition
           );
         }
+
+        // Set heading again - in some projections, this may change due to camera.move
+        orientation.heading = camera.heading;
       }
     } else if (mode === SceneMode.SCENE3D) {
       const cameraPositionNormal = Cartesian3.normalize(

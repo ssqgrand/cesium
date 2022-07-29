@@ -247,6 +247,20 @@ BoundingSphere.fromRectangle2D = function (rectangle, projection, result) {
   );
 };
 
+const INTERVAL_COUNT = 9;
+const HALF_PROJECTED_POINTS_COUNT = INTERVAL_COUNT * INTERVAL_COUNT;
+const PROJECTED_POINTS_COUNT = HALF_PROJECTED_POINTS_COUNT * 2;
+const projectedPointsScratch = new Array(PROJECTED_POINTS_COUNT);
+for (
+  let projectedPointIndex = 0;
+  projectedPointIndex < PROJECTED_POINTS_COUNT;
+  projectedPointIndex++
+) {
+  projectedPointsScratch[projectedPointIndex] = new Cartesian3();
+}
+const sampleScratch = new Cartographic();
+const cornerScratch = new Cartographic();
+
 /**
  * Computes a bounding sphere from a rectangle projected in 2D.  The bounding sphere accounts for the
  * object's minimum and maximum heights over the rectangle.
@@ -276,6 +290,35 @@ BoundingSphere.fromRectangleWithHeights2D = function (
   }
 
   projection = defaultValue(projection, defaultProjection);
+
+  if (!projection.isNormalCylindrical) {
+    const southwest = Rectangle.southwest(rectangle, cornerScratch);
+    const widthStep = rectangle.width / (INTERVAL_COUNT - 1);
+    const heightStep = rectangle.height / (INTERVAL_COUNT - 1);
+    const sample = sampleScratch;
+    let index = 0;
+
+    // Project points in a grid over the Rectangle
+    for (let x = 0; x < INTERVAL_COUNT; x++) {
+      for (let y = 0; y < INTERVAL_COUNT; y++) {
+        sample.longitude = southwest.longitude + x * widthStep;
+        sample.latitude = southwest.latitude + y * heightStep;
+        sample.height = minimumHeight;
+
+        projection.project(sample, projectedPointsScratch[index]);
+
+        sample.height = maximumHeight;
+        projection.project(
+          sample,
+          projectedPointsScratch[index + HALF_PROJECTED_POINTS_COUNT]
+        );
+
+        index++;
+      }
+    }
+
+    return BoundingSphere.fromPoints(projectedPointsScratch, result);
+  }
 
   Rectangle.southwest(rectangle, fromRectangle2DSouthwest);
   fromRectangle2DSouthwest.height = minimumHeight;

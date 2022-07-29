@@ -1,3 +1,7 @@
+import { BoundingSphere } from "../../Source/Cesium.js";
+import { Cartesian3 } from "../../Source/Cesium.js";
+import { Cartographic } from "../../Source/Cesium.js";
+import { GeographicProjection } from "../../Source/Cesium.js";
 import { GeographicTilingScheme } from "../../Source/Cesium.js";
 import { Math as CesiumMath } from "../../Source/Cesium.js";
 import { Rectangle } from "../../Source/Cesium.js";
@@ -109,6 +113,71 @@ describe("Scene/QuadtreeTile", function () {
         level: 0,
       });
     }).toThrowDeveloperError();
+  });
+
+  it("caches a 2D bounding sphere", function () {
+    const tilingScheme = new GeographicTilingScheme({
+      numberOfLevelZeroTilesX: 1,
+      numberOfLevelZeroTilesY: 1,
+    });
+    const levelZeroTile = QuadtreeTile.createLevelZeroTiles(tilingScheme)[0];
+    const mapProjection = new GeographicProjection();
+    const minimumHeight = 0.0;
+    const maximumHeight = 1000.0;
+
+    const expectedBoundingSphere = BoundingSphere.fromRectangleWithHeights2D(
+      Rectangle.MAX_VALUE,
+      mapProjection,
+      minimumHeight,
+      maximumHeight
+    );
+
+    const boundingSphere2D = levelZeroTile.getBoundingSphere2D(
+      mapProjection,
+      minimumHeight,
+      maximumHeight
+    );
+    expect(boundingSphere2D).toEqual(expectedBoundingSphere);
+
+    const boundingSphere2D2 = levelZeroTile.getBoundingSphere2D(
+      mapProjection,
+      minimumHeight,
+      maximumHeight
+    );
+    expect(boundingSphere2D2).toBe(boundingSphere2D);
+  });
+
+  it("caches projected corners", function () {
+    const tilingScheme = new GeographicTilingScheme({
+      numberOfLevelZeroTilesX: 1,
+      numberOfLevelZeroTilesY: 1,
+    });
+    const levelZeroTile = QuadtreeTile.createLevelZeroTiles(tilingScheme)[0];
+    const mapProjection = new GeographicProjection();
+
+    const southwest = new Cartesian3();
+    const northeast = new Cartesian3();
+
+    const southwestExpected = mapProjection.project(
+      Cartographic.fromDegrees(-180.0, -90.0)
+    );
+    const northeastExpected = mapProjection.project(
+      Cartographic.fromDegrees(180.0, 90.0)
+    );
+
+    spyOn(GeographicProjection.prototype, "project").and.callThrough();
+
+    levelZeroTile.getProjectedCorners(mapProjection, southwest, northeast);
+    expect(southwest).toEqual(southwestExpected);
+    expect(northeast).toEqual(northeastExpected);
+
+    expect(GeographicProjection.prototype.project.calls.count()).toEqual(2);
+
+    levelZeroTile.getProjectedCorners(mapProjection, southwest, northeast);
+    expect(southwest).toEqual(southwestExpected);
+    expect(northeast).toEqual(northeastExpected);
+
+    expect(GeographicProjection.prototype.project.calls.count()).toEqual(2);
   });
 
   it("can get tiles around a root tile", function () {

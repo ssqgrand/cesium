@@ -753,13 +753,13 @@ GlobeSurfaceTileProvider.prototype.computeTileVisibility = function (
 
   if (frameState.mode !== SceneMode.SCENE3D) {
     boundingVolume = boundingSphereScratch;
-    BoundingSphere.fromRectangleWithHeights2D(
-      tile.rectangle,
+    const tileBoundingSphere2D = tile.getBoundingSphere2D(
       frameState.mapProjection,
       tileBoundingRegion.minimumHeight,
       tileBoundingRegion.maximumHeight,
       boundingVolume
     );
+    BoundingSphere.clone(tileBoundingSphere2D, boundingVolume);
     Cartesian3.fromElements(
       boundingVolume.center.z,
       boundingVolume.center.x,
@@ -1628,6 +1628,9 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
     u_center3D: function () {
       return this.properties.center3D;
     },
+    u_center2D: function () {
+      return this.properties.center2D;
+    },
     u_terrainExaggerationAndRelativeHeight: function () {
       return this.properties.terrainExaggerationAndRelativeHeight;
     },
@@ -1804,6 +1807,7 @@ function createTileUniformMap(frameState, globeSurfaceTileProvider) {
       hsbShift: new Cartesian3(),
 
       center3D: undefined,
+      center2D: undefined,
       rtc: new Cartesian3(),
       modifiedModelView: new Matrix4(),
       tileRectangle: new Cartesian4(),
@@ -2191,14 +2195,9 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
 
   if (frameState.mode !== SceneMode.SCENE3D) {
     const projection = frameState.mapProjection;
-    const southwest = projection.project(
-      Rectangle.southwest(tile.rectangle),
-      southwestScratch
-    );
-    const northeast = projection.project(
-      Rectangle.northeast(tile.rectangle),
-      northeastScratch
-    );
+    const southwest = southwestScratch;
+    const northeast = northeastScratch;
+    tile.getProjectedCorners(projection, southwest, northeast);
 
     tileRectangle.x = southwest.x;
     tileRectangle.y = southwest.y;
@@ -2207,10 +2206,18 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
 
     // In 2D and Columbus View, use the center of the tile for RTC rendering.
     if (frameState.mode !== SceneMode.MORPHING) {
+      // If using a custom projection, project the existing tile center instead.
       rtc = rtcScratch;
-      rtc.x = 0.0;
-      rtc.y = (tileRectangle.z + tileRectangle.x) * 0.5;
-      rtc.z = (tileRectangle.w + tileRectangle.y) * 0.5;
+      if (projection.isNormalCylindrical) {
+        rtc.x = 0.0;
+        rtc.y = (tileRectangle.z + tileRectangle.x) * 0.5;
+        rtc.z = (tileRectangle.w + tileRectangle.y) * 0.5;
+      } else {
+        rtc.x = mesh.center2D.z;
+        rtc.y = mesh.center2D.x;
+        rtc.z = mesh.center2D.y;
+      }
+
       tileRectangle.x -= rtc.y;
       tileRectangle.y -= rtc.z;
       tileRectangle.z -= rtc.y;
@@ -2428,6 +2435,7 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
       );
     }
 
+    uniformMapProperties.center2D = mesh.center2D;
     uniformMapProperties.terrainExaggerationAndRelativeHeight.x = exaggeration;
     uniformMapProperties.terrainExaggerationAndRelativeHeight.y = exaggerationRelativeHeight;
 
@@ -2771,13 +2779,13 @@ function addDrawCommandsForTile(tileProvider, tile, frameState) {
     const orientedBoundingBox = command.orientedBoundingBox;
 
     if (frameState.mode !== SceneMode.SCENE3D) {
-      BoundingSphere.fromRectangleWithHeights2D(
-        tile.rectangle,
+      const tileBoundingRegion = surfaceTile.tileBoundingRegion;
+      const tileBoundingSphere2D = tile.getBoundingSphere2D(
         frameState.mapProjection,
         tileBoundingRegion.minimumHeight,
-        tileBoundingRegion.maximumHeight,
-        boundingVolume
+        tileBoundingRegion.maximumHeight
       );
+      BoundingSphere.clone(tileBoundingSphere2D, boundingVolume);
       Cartesian3.fromElements(
         boundingVolume.center.z,
         boundingVolume.center.x,

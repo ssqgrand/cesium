@@ -2,9 +2,9 @@ import BoundingSphere from "../Core/BoundingSphere.js";
 import ComponentDatatype from "../Core/ComponentDatatype.js";
 import defaultValue from "../Core/defaultValue.js";
 import defined from "../Core/defined.js";
+import deserializeMapProjection from "../Core/deserializeMapProjection.js";
 import DeveloperError from "../Core/DeveloperError.js";
 import Ellipsoid from "../Core/Ellipsoid.js";
-import GeographicProjection from "../Core/GeographicProjection.js";
 import Geometry from "../Core/Geometry.js";
 import GeometryAttribute from "../Core/GeometryAttribute.js";
 import GeometryAttributes from "../Core/GeometryAttributes.js";
@@ -12,7 +12,6 @@ import GeometryPipeline from "../Core/GeometryPipeline.js";
 import IndexDatatype from "../Core/IndexDatatype.js";
 import Matrix4 from "../Core/Matrix4.js";
 import OffsetGeometryInstanceAttribute from "../Core/OffsetGeometryInstanceAttribute.js";
-import WebMercatorProjection from "../Core/WebMercatorProjection.js";
 
 function transformToWorldCoordinates(
   instances,
@@ -713,13 +712,13 @@ PrimitivePipeline.packCombineGeometryParameters = function (
       transferableObjects
     ),
     ellipsoid: parameters.ellipsoid,
-    isGeographic: parameters.projection instanceof GeographicProjection,
     elementIndexUintSupported: parameters.elementIndexUintSupported,
     scene3DOnly: parameters.scene3DOnly,
     vertexCacheOptimize: parameters.vertexCacheOptimize,
     compressVertices: parameters.compressVertices,
     modelMatrix: parameters.modelMatrix,
     createPickOffsets: parameters.createPickOffsets,
+    serializedMapProjection: parameters.serializedMapProjection,
   };
 };
 
@@ -752,21 +751,22 @@ PrimitivePipeline.unpackCombineGeometryParameters = function (
   }
 
   const ellipsoid = Ellipsoid.clone(packedParameters.ellipsoid);
-  const projection = packedParameters.isGeographic
-    ? new GeographicProjection(ellipsoid)
-    : new WebMercatorProjection(ellipsoid);
 
-  return {
-    instances: instances,
-    ellipsoid: ellipsoid,
-    projection: projection,
-    elementIndexUintSupported: packedParameters.elementIndexUintSupported,
-    scene3DOnly: packedParameters.scene3DOnly,
-    vertexCacheOptimize: packedParameters.vertexCacheOptimize,
-    compressVertices: packedParameters.compressVertices,
-    modelMatrix: Matrix4.clone(packedParameters.modelMatrix),
-    createPickOffsets: packedParameters.createPickOffsets,
-  };
+  return deserializeMapProjection(
+    packedParameters.serializedMapProjection
+  ).then(function (projection) {
+    return {
+      instances: instances,
+      ellipsoid: ellipsoid,
+      projection: projection,
+      elementIndexUintSupported: packedParameters.elementIndexUintSupported,
+      scene3DOnly: packedParameters.scene3DOnly,
+      vertexCacheOptimize: packedParameters.vertexCacheOptimize,
+      compressVertices: packedParameters.compressVertices,
+      modelMatrix: Matrix4.clone(packedParameters.modelMatrix),
+      createPickOffsets: packedParameters.createPickOffsets,
+    };
+  });
 };
 
 function packBoundingSpheres(boundingSpheres) {

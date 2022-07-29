@@ -99,6 +99,9 @@ function TileBoundingRegion(options) {
    */
   this.northNormal = new Cartesian3();
 
+  this._projectedSouthWestCornerCartesian = undefined;
+  this._projectedNorthEastCornerCartesian = undefined;
+
   const ellipsoid = defaultValue(options.ellipsoid, Ellipsoid.WGS84);
   computeBox(this, options.rectangle, ellipsoid);
 
@@ -152,6 +155,31 @@ TileBoundingRegion.prototype.computeBoundingVolumes = function (ellipsoid) {
     this._orientedBoundingBox
   );
 };
+
+function getProjectedCorners(
+  tile,
+  mapProjection,
+  southwestResult,
+  northeastResult
+) {
+  let projectedSouthwestCorner = tile._projectedSouthWestCornerCartesian;
+  let projectedNortheastCorner = tile._projectedNorthEastCornerCartesian;
+
+  if (!defined(projectedSouthwestCorner)) {
+    projectedSouthwestCorner = mapProjection.project(
+      Rectangle.southwest(tile.rectangle)
+    );
+    projectedNortheastCorner = mapProjection.project(
+      Rectangle.northeast(tile.rectangle)
+    );
+
+    tile._projectedSouthWestCornerCartesian = projectedSouthwestCorner;
+    tile._projectedNorthEastCornerCartesian = projectedNortheastCorner;
+  }
+
+  Cartesian3.clone(projectedSouthwestCorner, southwestResult);
+  Cartesian3.clone(projectedNortheastCorner, northeastResult);
+}
 
 const cartesian3Scratch = new Cartesian3();
 const cartesian3Scratch2 = new Cartesian3();
@@ -325,17 +353,18 @@ function distanceToCameraRegion(tileBB, frameState) {
     let northNormal = tileBB.northNormal;
 
     if (frameState.mode !== SceneMode.SCENE3D) {
-      southwestCornerCartesian = frameState.mapProjection.project(
-        Rectangle.southwest(tileBB.rectangle),
-        southwestCornerScratch
+      southwestCornerCartesian = southwestCornerScratch;
+      northeastCornerCartesian = northeastCornerScratch;
+      getProjectedCorners(
+        tileBB,
+        frameState.mapProjection,
+        southwestCornerCartesian,
+        northeastCornerCartesian
       );
+
       southwestCornerCartesian.z = southwestCornerCartesian.y;
       southwestCornerCartesian.y = southwestCornerCartesian.x;
       southwestCornerCartesian.x = 0.0;
-      northeastCornerCartesian = frameState.mapProjection.project(
-        Rectangle.northeast(tileBB.rectangle),
-        northeastCornerScratch
-      );
       northeastCornerCartesian.z = northeastCornerCartesian.y;
       northeastCornerCartesian.y = northeastCornerCartesian.x;
       northeastCornerCartesian.x = 0.0;

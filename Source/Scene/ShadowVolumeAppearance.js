@@ -478,51 +478,51 @@ function addTextureCoordinateRotationAttributes(
   });
 }
 
-const cartographicScratch = new Cartographic();
 const cornerScratch = new Cartesian3();
-const northWestScratch = new Cartesian3();
-const southEastScratch = new Cartesian3();
+const topLeftScratch = new Cartographic();
+const bottomRightScratch = new Cartographic();
+const projectedExtentsScratch = new Rectangle();
 const highLowScratch = { high: 0.0, low: 0.0 };
 function add2DTextureCoordinateAttributes(rectangle, projection, attributes) {
   // Compute corner positions in double precision
-  const carto = cartographicScratch;
-  carto.height = 0.0;
+  const projectedExtents = Rectangle.approximateProjectedExtents(
+    {
+      cartographicRectangle: rectangle,
+      mapProjection: projection,
+    },
+    projectedExtentsScratch
+  );
 
-  carto.longitude = rectangle.west;
-  carto.latitude = rectangle.south;
-
-  const southWestCorner = projection.project(carto, cornerScratch);
-
-  carto.latitude = rectangle.north;
-  const northWest = projection.project(carto, northWestScratch);
-
-  carto.longitude = rectangle.east;
-  carto.latitude = rectangle.south;
-  const southEast = projection.project(carto, southEastScratch);
+  const bottomLeftCorner = Rectangle.southwest(projectedExtents, cornerScratch);
+  const topLeft = Rectangle.northwest(projectedExtents, topLeftScratch);
+  const bottomRight = Rectangle.southeast(projectedExtents, bottomRightScratch);
 
   // Since these positions are all in the 2D plane, there's a lot of zeros
   // and a lot of repetition. So we only need to encode 4 values.
   // Encode:
-  // x: x value for southWestCorner
-  // y: y value for southWestCorner
-  // z: y value for northWest
-  // w: x value for southEast
+  // x: x value for bottomLeftCorner
+  // y: y value for bottomLeftCorner
+  // z: y value for topLeft
+  // w: x value for bottomRight
 
   const valuesHigh = [0, 0, 0, 0];
   const valuesLow = [0, 0, 0, 0];
-  let encoded = EncodedCartesian3.encode(southWestCorner.x, highLowScratch);
+  let encoded = EncodedCartesian3.encode(
+    bottomLeftCorner.longitude,
+    highLowScratch
+  );
   valuesHigh[0] = encoded.high;
   valuesLow[0] = encoded.low;
 
-  encoded = EncodedCartesian3.encode(southWestCorner.y, highLowScratch);
+  encoded = EncodedCartesian3.encode(bottomLeftCorner.latitude, highLowScratch);
   valuesHigh[1] = encoded.high;
   valuesLow[1] = encoded.low;
 
-  encoded = EncodedCartesian3.encode(northWest.y, highLowScratch);
+  encoded = EncodedCartesian3.encode(topLeft.latitude, highLowScratch);
   valuesHigh[2] = encoded.high;
   valuesLow[2] = encoded.low;
 
-  encoded = EncodedCartesian3.encode(southEast.x, highLowScratch);
+  encoded = EncodedCartesian3.encode(bottomRight.longitude, highLowScratch);
   valuesHigh[3] = encoded.high;
   valuesLow[3] = encoded.low;
 
@@ -747,6 +747,7 @@ ShadowVolumeAppearance.getPlanarTextureCoordinateAttributes = function (
   return attributes;
 };
 
+const cartographicScratch = new Cartographic();
 const spherePointScratch = new Cartesian3();
 function latLongToSpherical(latitude, longitude, ellipsoid, result) {
   const cartographic = cartographicScratch;

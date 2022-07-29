@@ -76,6 +76,7 @@ TerrainData.prototype.isChildAvailable = DeveloperError.throwInstantiationError;
  * @param {Number} options.x The X coordinate of the tile for which to create the terrain data.
  * @param {Number} options.y The Y coordinate of the tile for which to create the terrain data.
  * @param {Number} options.level The level of the tile for which to create the terrain data.
+ * @param {SerializedMapProjection} options.serializedMapProjection Serialized map projection.
  * @param {Number} [options.exaggeration=1.0] The scale used to exaggerate the terrain.
  * @param {Number} [options.exaggerationRelativeHeight=0.0] The height relative to which terrain is exaggerated.
  * @param {Boolean} [options.throttle=true] If true, indicates that this operation will need to be retried if too many asynchronous mesh creations are already in progress.

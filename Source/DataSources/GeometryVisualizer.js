@@ -240,13 +240,15 @@ function GeometryVisualizer(
     ClassificationType.NUMBER_OF_CLASSIFICATION_TYPES;
   const groundColorBatches = new Array(numberOfClassificationTypes);
   const groundMaterialBatches = [];
+  const mapProjection = scene.mapProjection;
   if (supportsMaterialsforEntitiesOnTerrain) {
     for (i = 0; i < numberOfClassificationTypes; ++i) {
       groundMaterialBatches.push(
         new StaticGroundGeometryPerMaterialBatch(
           groundPrimitives,
           i,
-          MaterialAppearance
+          MaterialAppearance,
+          mapProjection
         )
       );
       groundColorBatches[i] = new StaticGroundGeometryColorBatch(
@@ -258,7 +260,8 @@ function GeometryVisualizer(
     for (i = 0; i < numberOfClassificationTypes; ++i) {
       groundColorBatches[i] = new StaticGroundGeometryColorBatch(
         groundPrimitives,
-        i
+        i,
+        mapProjection
       );
     }
   }
